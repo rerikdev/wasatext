@@ -38,6 +38,398 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LoginResponse' # Best practice: reference a schema
+  /users/me/name:
+    put:
+      tags: ["user"]
+      summary: Change the username
+      description: |-
+        Updates the name of the authenticated user. 
+        The operation fails if the name is already in use.
+      operationId: setMyUserName
+      security:
+        - BearerAuth: [] # This protects the endpoint 
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  minLength: 3
+                  maxLength: 16
+                  pattern: '.*?\$' # Matches the login pattern requirement 
+      responses:
+        '204':
+          description: Username updated successfully
+        '400':
+          description: Invalid name format
+        '401':
+          description: Unauthorized (Identifier missing or invalid) 
+        '409':
+          description: Name already in use 
+
+  /users/me/conversations:
+    get:
+      tags: ["conversations"]
+      summary: Get user's conversation list
+      description: |-
+        Returns all conversations for the authenticated user, 
+        sorted by the most recent message first.
+      operationId: getMyConversations
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of conversations retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Conversation'
+
+  /users:
+    get:
+      tags: ["user"]
+      summary: Search for users
+      description: Returns a list of usernames matching the search query.
+      operationId: searchUsers
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: username
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of usernames found
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+
+  /users/me/photo:
+    put:
+      tags: ["user"]
+      summary: Set profile photo
+      operationId: setMyPhoto
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                photo:
+                  type: string
+                  format: uri
+      responses:
+        '204':
+          description: Photo updated
+
+  /conversations/{conversationId}:
+    get:
+      tags: ["conversations"]
+      summary: View message history
+      description: |-
+        Retrieves all messages in a conversation, sorted newest first. 
+        Opening this endpoint should trigger the "read" status (two checkmarks) for the recipient.
+      operationId: getConversation
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: string
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of messages retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Message'
+
+  /conversations/{conversationId}/messages:
+    post:
+      tags: ["messages"]
+      summary: Send a new message
+      description: Sends a text message or a GIF URL to a conversation.
+      operationId: sendMessage
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - content
+              properties:
+                content:
+                  type: string
+                  example: "Check out this cool GIF!"
+      responses:
+        '201':
+          description: Message sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+
+  /conversations/{conversationId}/messages/{messageId}/reactions:
+    post:
+      tags: ["messages"]
+      summary: React to a message
+      operationId: commentMessage
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - emoticon
+              properties:
+                emoticon:
+                  type: string
+                  example: "👍"
+      responses:
+        '204':
+          description: Reaction added
+    delete:
+      tags: ["messages"]
+      summary: Remove a reaction
+      operationId: uncommentMessage
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Reaction removed
+
+  /conversations/{conversationId}/messages/{messageId}:
+    delete:
+      tags: ["messages"]
+      summary: Delete a message
+      operationId: deleteMessage
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Message deleted
+  
+  /conversations/{conversationId}/messages/{messageId}/forward:
+    post:
+      tags: ["messages"]
+      summary: Forward a message
+      operationId: forwardMessage
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - targetConversationId
+              properties:
+                targetConversationId:
+                  type: string
+                  description: The ID of the conversation to forward the message to.
+      responses:
+        '201':
+          description: Message forwarded successfully
+        
+  /groups:
+    post:
+      tags: ["groups"]
+      summary: Create a new group
+      operationId: addToGroup
+      description: Creates a group with a name and a list of members.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, members]
+              properties:
+                name:
+                  type: string
+                members:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '201':
+          description: Group created successfully
+
+  /groups/{groupId}/name:
+    put:
+      tags: ["groups"]
+      summary: Change group name
+      operationId: setGroupName
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+      responses:
+        '204':
+          description: Group name updated
+
+  /groups/{groupId}/members/me:
+    delete:
+      tags: ["groups"]
+      summary: Leave a group
+      operationId: leaveGroup
+      description: Removes the authenticated user from the group.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Left group successfully
+  
+  /groups/{groupId}/members:
+    post:
+      tags: ["groups"]
+      summary: Add a member to an existing group
+      operationId: addMemberToGroup
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username]
+              properties:
+                username:
+                  type: string
+      responses:
+        '204':
+          description: Member added successfully
+
+  /groups/{groupId}/photo:
+    put:
+      tags: ["groups"]
+      summary: Set group photo
+      operationId: setGroupPhoto
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                photo:
+                  type: string
+                  format: uri
+      responses:
+        '204':
+          description: Group photo updated
 
 components:
   schemas:
@@ -45,10 +437,62 @@ components:
       type: object
       properties:
         identifier:
-          type: string # Spec allows integer if you prefer
+          type: string
           example: "abcdef012345"
-  
+    
+    Conversation:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+          example: "Maria"
+        photo:
+          type: string
+          format: uri
+        lastMessage:
+          type: object
+          properties:
+            timestamp:
+              type: string
+              format: date-time
+            preview:
+              type: string
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+        sender:
+          type: string
+        content:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [received, read]
+        reactions:
+          type: array
+          items:
+            type: object
+            properties:
+              user:
+                type: string
+              emoticon:
+                type: string
+
   securitySchemes:
     BearerAuth: # Every request except login needs this
       type: http
       scheme: bearer
+
+
+# okay, so this was the architecture part: the openapi written in yaml. 
+# with this, we finished designing the application programming interface. 
+# these are the definitions and properties for the given operations. We also 
+# specified for each operation it's HTTP method (post, get, put, delete, or CRUD: Create, Read, Update, Delete.)
+# HTTP is the set of policies of client-server communication. 
