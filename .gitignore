@@ -1,0 +1,28 @@
+# --- Backend (Go) ---
+# Compiled binaries (like the one created by go build)
+/cmd/webapi/webapi
+/cmd/webapi/webapi.exe
+*.exe
+
+# Local database and state
+/wasatext.db
+/wasatext.db-journal
+
+# --- Frontend (Vue / Node.js) ---
+# Ignore the massive dependencies folder
+/webui/node_modules/
+
+# Ignore production build artifacts
+/webui/dist/
+
+# Local configuration and logs
+/webui/.env.local
+/webui/npm-debug.log*
+/webui/yarn-debug.log*
+/webui/yarn-error.log*
+
+# --- System / IDE ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
