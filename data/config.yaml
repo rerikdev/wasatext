@@ -1,0 +1,11 @@
+db:
+  filename: data/wasatext_2.db
+
+debug: true
+
+web:
+  APIHost: "0.0.0.0:3000"
+  DebugHost: "0.0.0.0:4000"
+  ReadTimeout: 10s
+  WriteTimeout: 10s
+  ShutdownTimeout: 10s

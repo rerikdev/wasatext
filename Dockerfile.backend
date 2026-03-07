@@ -1,0 +1,34 @@
+# Use official Go image for build
+FROM golang:1.17 AS builder
+
+# Create application folder
+RUN mkdir -p /app
+
+# Copy source code
+COPY /service /app/service
+COPY /cmd /app/cmd
+COPY /vendor /app/vendor
+COPY /go.mod /app/go.mod
+COPY /go.sum /app/go.sum
+
+WORKDIR /app
+
+# Compile the application
+RUN go build -o webapi ./cmd/webapi/
+
+# Use a smaller Go image for runtime
+FROM golang:1.17
+
+WORKDIR /app
+
+# Copy compiled binary from build stage
+COPY --from=builder /app/webapi .
+
+#Permission for container
+RUN mkdir -p /app/data && chmod -R 777 /app/data
+
+# Expose backend port
+EXPOSE 3000
+
+# Start backend
+CMD ["./webapi"]

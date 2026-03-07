@@ -1,0 +1,60 @@
+package database
+
+import (
+	"github.com/rerikdev/WASAText/service/structures"
+)
+
+// AddReaction aggiunge o aggiorna una reazione a un messaggio
+func (db *appdbimpl) AddReaction(messageId int, userId int, emoji string) error {
+	// Sostituisci la reazione se già presente
+	_, err := db.c.Exec(`
+        INSERT INTO reactions (message_id, user_id, emoji)
+        VALUES (?, ?, ?)
+        ON CONFLICT(message_id, user_id) DO UPDATE SET emoji=excluded.emoji
+    `, messageId, userId, emoji)
+	return err
+}
+
+// RemoveReaction rimuove la reazione di un utente da un messaggio
+func (db *appdbimpl) RemoveReaction(messageId int, userId int) error {
+	_, err := db.c.Exec(`
+        DELETE FROM reactions WHERE message_id = ? AND user_id = ?
+    `, messageId, userId)
+	return err
+}
+
+// GetReactions restituisce tutte le reazioni a un messaggio
+func (db *appdbimpl) GetReactions(messageId int) ([]*structures.Reaction, error) {
+	rows, err := db.c.Query(`
+        SELECT r.message_id, r.user_id, r.emoji, u.id, u.username, u.display_name, u.profile_picture
+        FROM reactions r
+        JOIN users u ON r.user_id = u.id
+        WHERE r.message_id = ?
+    `, messageId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var reactions []*structures.Reaction
+	for rows.Next() {
+		reaction := &structures.Reaction{} // Crea PUNTATORE
+		user := &structures.User{}         // Crea PUNTATORE
+		err := rows.Scan(
+			&reaction.MessageId, &reaction.UserId, &reaction.Emoji,
+			&user.ID, &user.Username, &user.DisplayName, &user.ProfilePicture,
+		)
+		if err != nil {
+			return nil, err
+		}
+		reaction.User = *user                   // Dereferenzia il puntatore per assegnare il valore
+		reactions = append(reactions, reaction) // Appendi il PUNTATORE
+	}
+
+	// AGGIUNGI CONTROLLO rows.Err():
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return reactions, nil
+}
